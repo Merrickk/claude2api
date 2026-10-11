@@ -13,8 +13,14 @@ import (
 
 func ListModels(c *gin.Context) {
 	now := time.Now().Unix()
+	// 二开：优先暴露上游 bootstrap 实际下发的模型清单（号池账号可见什么就列什么）；
+	// 上游清单不可用时回落到源码内置的静态清单，保证接口不空转。
+	ids := service.DynamicModels()
+	if len(ids) == 0 {
+		ids = supportedModels
+	}
 	data := make([]gin.H, 0)
-	for _, id := range supportedModels {
+	for _, id := range ids {
 		for _, model := range []string{id, id + "-thinking"} {
 			data = append(data, gin.H{
 				"id": model, "object": "model", "created": now, "owned_by": "anthropic",

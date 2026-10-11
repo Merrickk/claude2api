@@ -19,6 +19,11 @@ type Account struct {
 
 // LoadAccounts 读取全部账号。
 func LoadAccounts() []Account {
+	// 二开：DB 未初始化时返回空列表而不是 nil 解引用 panic。
+	// /v1/models 的动态清单会经号池读取走到这里，该接口在任何状态下都不应崩。
+	if db == nil {
+		return []Account{}
+	}
 	var out []Account
 	if err := db.Order("id ASC").Find(&out).Error; err != nil {
 		return []Account{}

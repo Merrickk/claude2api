@@ -1,7 +1,7 @@
 services:
   claude2api:
-    image: ghcr.io/basketikun/claude2api:latest
-    pull_policy: always
+    build: .
+    container_name: claude2api
     ports:
       - "8787:8787"
     volumes:

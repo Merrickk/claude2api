@@ -16,13 +16,13 @@
 
 ## 快速开始
 
-Docker Compose 一键部署
+Docker Compose 本地编译部署（本 fork 已改源码，只保留本地编译方式）
 
 ```bash
-git clone https://github.com/basketikun/claude2api.git
+git clone https://github.com/Merrickk/claude2api.git
 cd claude2api
 cp config.example.yaml config.yaml
-docker compose up -d
+docker compose up -d --build
 ```
 
 ## 核心功能

@@ -60,6 +60,34 @@ func TestExtractModelIDsEmpty(t *testing.T) {
 	}
 }
 
+// 用 2026-10-11 真号实测同步到的 16 个上游模型做回归样本：
+// 免费计划只能保留 Sonnet/Haiku 两家，Opus/Fable 必须全部滤掉且顺序不变。
+func TestFilterFreePlanModels(t *testing.T) {
+	in := []string{
+		"claude-fable-5-1", "claude-opus-5-5", "claude-opus-4-5-20251101",
+		"claude-opus-4-1-20250805-claude-ai", "claude-sonnet-5-5", "claude-haiku-5-5",
+		"claude-fable-5", "claude-opus-5", "claude-opus-4-8", "claude-opus-4-7",
+		"claude-opus-4-6", "claude-3-opus-20240229", "claude-sonnet-5",
+		"claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-sonnet-4-5-20250929",
+	}
+	want := []string{
+		"claude-sonnet-5-5", "claude-haiku-5-5", "claude-sonnet-5",
+		"claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-sonnet-4-5-20250929",
+	}
+	got := FilterFreePlanModels(in)
+	if len(got) != len(want) {
+		t.Fatalf("数量不符: got %v want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("第 %d 个不符: got %v want %v", i, got, want)
+		}
+	}
+	if empty := FilterFreePlanModels(nil); len(empty) != 0 {
+		t.Fatalf("空输入应返回空, got %v", empty)
+	}
+}
+
 func TestIsModelID(t *testing.T) {
 	if !isModelID("claude-haiku-5-5-20261001") {
 		t.Fatal("合法模型 id 被拒绝")

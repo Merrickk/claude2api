@@ -18,7 +18,7 @@ import (
 // 原版 /v1/models 只返回源码里写死的 supportedModels 清单，上游新模型永远刷不出来。
 // 改为用号池里某个可用账号的会话去读 claude.ai 的 bootstrap 响应，
 // 把其中的 model_selector_config（网页端模型选择器的数据源）里出现的模型 id
-// 原样暴露出去——上游给什么，这里就列什么。
+// 提取出来，再按免费计划过滤（见 FilterFreePlanModels）后暴露出去。
 //
 // 兜底原则：拿不到上游清单时（无可用账号、请求失败、解析为空）返回 nil，
 // 调用方回落到原版静态清单，保证 /v1/models 永不空、永不挂。
@@ -63,10 +63,35 @@ func DynamicModels() []string {
 		slog.Warn("[Models] 读取上游模型清单失败，继续使用缓存/静态清单", "email", acct.Email, "err", err)
 		return dynModelsCache
 	}
-	dynModelsCache = ids
+	kept := FilterFreePlanModels(ids)
+	if len(kept) == 0 {
+		slog.Warn("[Models] 上游清单过滤后为空，继续使用缓存/静态清单", "email", acct.Email, "upstream_count", len(ids))
+		return dynModelsCache
+	}
+	dynModelsCache = kept
 	dynModelsAt = now
-	slog.Info("[Models] 已从上游 bootstrap 同步模型清单", "email", acct.Email, "count", len(ids), "models", ids)
+	slog.Info("[Models] 已从上游 bootstrap 同步模型清单", "email", acct.Email, "count", len(kept), "upstream_count", len(ids), "models", kept)
 	return dynModelsCache
+}
+
+// FilterFreePlanModels 只保留免费计划能用的模型。
+// bootstrap 返回的是全量产品目录（含 Opus/Fable 等付费型号），而号池里是免费账号：
+// 按 Anthropic 的套餐划分，免费计划只有 Sonnet 与 Haiku 两家，Opus 需 Pro 起，
+// Fable 需 Pro 付点数或 Max。这里按家族过滤而不是写死具体型号，
+// 这样新款 Sonnet/Haiku 发布后仍能自动流入清单，Opus/Fable 不会再混进来。
+func FilterFreePlanModels(ids []string) []string {
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if isFreePlanModel(id) {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+func isFreePlanModel(id string) bool {
+	return strings.HasPrefix(id, "claude-sonnet-") || strings.Contains(id, "-sonnet-") ||
+		strings.HasPrefix(id, "claude-haiku-") || strings.Contains(id, "-haiku-")
 }
 
 // FetchBootstrapModels 拉取 bootstrap 响应并提取模型 id。
